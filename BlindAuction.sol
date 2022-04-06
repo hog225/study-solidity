@@ -9,6 +9,7 @@ contract BlindAuction {
 
     enum Phase {Init, Bidding, Reveal, Done}
     Phase public state = Phase.Init;
+    Phase public currentPhase = Phase.Init;
 
 
     address payable public beneficiary; // contract 배포자가 수혜자다 
@@ -20,6 +21,10 @@ contract BlindAuction {
     bytes32 public bidAmount;
 
     mapping(address => uint) depositReturns;
+
+    event AuctionEnded(address winner, uint highestBid);
+    event BiddingStarted();
+    event RevealStarted();
 
     modifier validPhase(Phase reqPhase) {
         require(state == reqPhase, "invalid phase ");
@@ -33,7 +38,18 @@ contract BlindAuction {
 
     constructor() public {
         beneficiary = msg.sender;
-        state = Phase.Bidding;
+    }
+
+    function advancePhase() public onlyBeneficiary {
+        if (currentPhase == Phase.Done) {
+            currentPhase = Phase.Init;
+        } else {
+            uint nextPhase = uint(currentPhase) + 1;
+            currentPhase = Phase(nextPhase);
+        }
+
+        if (currentPhase == Phase.Reveal) emit RevealStarted();
+        if (currentPhase == Phase.Bidding) emit BiddingStarted();
     }
 
     function changeState(Phase x) public onlyBeneficiary {
@@ -113,5 +129,6 @@ contract BlindAuction {
         validPhase(Phase.Done)
     {
         beneficiary.transfer(highestBid);
+        emit AuctionEnded(highestBidder, highestBid);
     }
 }
